@@ -10,6 +10,8 @@
 #include <Wire.h>
 #include <BlynkSimpleEsp32.h>
 #include <TinyGPS++.h>
+#include <HardwareSerial.h>
+HardwareSerial gsmSerial ( 1 );
 int GPSBaud = 9600;
 
 TinyGPSPlus gps;
@@ -37,21 +39,22 @@ void sendlocation(){
     if (gps.encode(Serial2.read())) {
       gpslat = gps.location.lat();
       gpslon = gps.location.lng();
+      gsmSerial.begin ( 115200, SERIAL_8N1, 14, 12 );
       Serial.println("Sending Location");
-      Serial1.println("AT");
+      gsmSerial.println("AT");
       delay(1000);
-      Serial1.print("AT+CMGF=1\r");
+      gsmSerial.print("AT+CMGF=1\r");
       delay(1000);
-      Serial1.print("AT+CMGS=\"+919483088337\"\r");
+      gsmSerial.print("AT+CMGS=\"+919483088337\"\r");
       delay(1000);
       // The text of the message to be sent.
-      Serial1.print("Google Maps Link: ");
-      Serial1.print("https://www.google.com/maps/search/?api=1&query=");
-      Serial1.print(gpslat, 6);
-      Serial1.print(",");
-      Serial1.println(gpslon, 6);
+      gsmSerial.print("Google Maps Link: ");
+      gsmSerial.print("https://www.google.com/maps/search/?api=1&query=");
+      gsmSerial.print(gpslat, 6);
+      gsmSerial.print(",");
+      gsmSerial.println(gpslon, 6);
       delay(1000);
-      Serial1.write(0x1A);
+      gsmSerial.write(0x1A);
       delay(1000);
     }
   }
@@ -68,10 +71,10 @@ void displaylcd(String message) {
 void updateSerial() {
   delay(500);
   while (Serial.available()) {
-    Serial1.write(Serial.read()); // Forward what Serial received to Software Serial Port
+    gsmSerial.write(Serial.read()); // Forward what Serial received to Software Serial Port
   }
-  while (Serial1.available()) {
-    Serial.write(Serial1.read()); // Forward what Software Serial received to Serial Port
+  while (gsmSerial.available()) {
+    gsmSerial.write(gsmSerial.read()); // Forward what Software Serial received to Serial Port
   }
 }
 
@@ -218,26 +221,26 @@ void gpsdetect(){
 
 
 void sendsms() {
-  Serial1.println("AT"); // Handshaking with SIM900
+  gsmSerial.println("AT"); // Handshaking with SIM900
   updateSerial();
-  Serial1.println("AT+CMGF=1"); // Configuring TEXT mode
+  gsmSerial.println("AT+CMGF=1"); // Configuring TEXT mode
   updateSerial();
-  Serial1.println("AT+CMGS=\"+919483088337\""); // Change ZZ with country code and xxxxxxxxxxx with phone number to sms
+  gsmSerial.println("AT+CMGS=\"+919483088337\""); // Change ZZ with country code and xxxxxxxxxxx with phone number to sms
   updateSerial();
-  Serial1.print("Accident has occurred please help us"); // Text content
+  gsmSerial.print("Accident has occurred please help us"); // Text content
   updateSerial();
-  Serial1.write(26);
+  gsmSerial.write(26);
   displaylcd("Sms Sent"); // Display message on LCD
 }
 void gsmCheck() {
   displaylcd("SIM NETWORK...");
   Serial.println("Connecting to SIM NETWORK");
-  Serial1.println("AT");
+  gsmSerial.println("AT");
   delay(1000);
 
   while (true) {
-    if (Serial1.available()) {
-      String response = Serial1.readString();
+    if (gsmSerial.available()) {
+      String response = gsmSerial.readString();
       if (response.indexOf("OK") != -1) {
         displaylcd("GSM Enabled");
         delay(500);
@@ -245,7 +248,7 @@ void gsmCheck() {
         return; 
       }
     }
-    Serial1.println("AT");
+    gsmSerial.println("AT");
     delay(1000); 
     displaylcd("SIM NETWORK...");
     Serial.println("Connecting to SIM NETWORK");
@@ -256,7 +259,7 @@ void gsmCheck() {
 void setup() {
   lcd.init();  
   lcd.backlight();  
-  Serial1.begin(115200, SERIAL_8N1, 14, 12);
+  gsmSerial.begin ( 115200, SERIAL_8N1, 14, 12 );
   Serial.begin(115200);
   delay(10);
   displaylcd("Connecting to ...");
